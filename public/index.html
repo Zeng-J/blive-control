@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      li {
+        font-size: 20px;
+        padding: 12px 0;
+        color: #333;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <button id="btn">test</button>
+    <button id="send">send</button>
+    <ul></ul>
+    <script>
+      var synth = window.speechSynthesis;
+      var voices = synth.getVoices();
+
+      var curVal = 0;
+      var voiceSelect = document.querySelector("ul");
+
+      function optionsRender() {
+        for (let i = 0; i < voices.length; i++) {
+          let option = document.createElement("li");
+          option.textContent = voices[i].name + " (" + voices[i].lang + ")";
+          option.value = i;
+          option.onclick = () => {
+            curVal = i;
+            vc.handleSpeak("测试测试");
+          };
+          voiceSelect.appendChild(option);
+        }
+      }
+
+      window.speechSynthesis.onvoiceschanged = function () {
+        voices = window.speechSynthesis
+          .getVoices()
+          .filter((item) => item.lang.includes("zh"));
+        optionsRender();
+      };
+
+      class VoiceController {
+        constructor(ws) {
+          this.synth = window.speechSynthesis;
+        }
+        // 语音播报的函数
+        handleSpeak(text) {
+          this.ssu = new SpeechSynthesisUtterance(text);
+          const msg = this.ssu;
+          msg.onend = function () {
+            console.log("播放结束");
+            ws.send(JSON.stringify({ type: "end" }));
+          };
+          msg.lang = "zh-CN"; // 使用的语言:中文
+          msg.volume = 1; // 声音音量：1
+          msg.rate = 1; // 语速：1
+          msg.pitch = 1; // 音高：1
+          msg.voice = voices[curVal];
+          console.log(curVal, msg.voice);
+          this.synth.speak(msg); // 播放
+        }
+        // 语音停止
+        handleStop(e) {
+          const msg = this.ssu;
+          msg.text = e;
+          msg.lang = "zh-CN";
+          this.synth.cancel(msg);
+        }
+      }
+
+      const ws = new WebSocket(`ws://${location.host}`);
+      var vc = new VoiceController(ws);
+      ws.onopen = () => {
+        console.log("WebSocket 连接已建立");
+      };
+
+      ws.onmessage = (event) => {
+        console.log(`接收到消息：${event.data}`);
+        vc.handleSpeak(event.data);
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket 连接已关闭");
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket 连接错误", error);
+      };
+
+      document.getElementById("btn").onclick = () => {
+        vc.handleSpeak("测试测试");
+      };
+      document.getElementById("send").onclick = () => {
+        ws.send(JSON.stringify({ type: "test" }));
+      };
+    </script>
+  </body>
+</html>
