@@ -5,9 +5,9 @@ import WebSocket from "ws";
 export default async function vtsStart() {
   return new Promise((resolve) => {
     const apiClient = new vts.ApiClient({
-      authTokenGetter: () => fs.readFileSync("./auth-token.txt", "utf-8"),
+      authTokenGetter: () => fs.readFileSync("../auth-token.txt", "utf-8"),
       authTokenSetter: (authenticationToken) =>
-        fs.writeFileSync("./auth-token.txt", authenticationToken, {
+        fs.writeFileSync("../auth-token.txt", authenticationToken, {
           encoding: "utf-8",
         }),
       pluginName: "VTS.JS-ZJ",

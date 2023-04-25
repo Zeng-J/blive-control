@@ -20,10 +20,7 @@ export default class Controll {
       ws.on("message", (json) => {
         const obj = JSON.parse(json);
         console.log("received: %s", json);
-        // 话讲完了，嘴巴停止
-        if (obj.type === "end") {
-          this.handleMouthStop();
-        } else if (obj.type === "test") {
+        if (obj.type === "test") {
           this.test();
         }
       });
@@ -31,36 +28,6 @@ export default class Controll {
         console.log("WebSocket 连接已关闭");
       });
     });
-  }
-
-  handleMouthMove(open) {
-    this.vtsClient
-      .injectParameterData({
-        mode: "set",
-        parameterValues: [
-          {
-            id: "MouthOpen",
-            value: open ? 0.7 : 0,
-          },
-        ],
-      })
-      .catch((err) => {
-        console.error(err);
-      });
-  }
-
-  handleMouthStart() {
-    let isOpen = true;
-    clearInterval(this.mouthTimer);
-    this.handleMouthMove(isOpen);
-    this.mouthTimer = setInterval(() => {
-      this.handleMouthMove((isOpen = !isOpen));
-    }, 280);
-  }
-
-  handleMouthStop() {
-    clearInterval(this.mouthTimer);
-    this.handleMouthMove(false);
   }
 
   test() {
@@ -72,7 +39,6 @@ export default class Controll {
     ];
     if (this.ws) {
       this.ws.send(texts[Math.floor(Math.random() * 4)]);
-      this.handleMouthStart();
     }
   }
 }
