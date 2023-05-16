@@ -54,7 +54,9 @@ class Controller {
       msg.voice = this.curVoices;
     }
     this.synth.speak(msg); // 语音播放
-    this.handleMouthStart(); // 动嘴巴
+    setTimeout(() => {
+      this.handleMouthStart(); // 动嘴巴
+    }, 300)
   }
   // 语音停止
   handleStop(e) {
@@ -128,8 +130,10 @@ function createVTSController() {
     pluginDeveloper: "Hawkbar",
 
     // Optionally set the URL or port to connect to VTube Studio at; defaults are as below:
-    port: 8001,
+    // port: 8001,
     //url: "ws://localhost:${port}",
+
+    url: "ws://127.0.0.1:8001",
   };
 
   const apiClient = new ApiClient(options);
@@ -141,5 +145,6 @@ const vts = createVTSController();
 new Controller(ws, vts);
 
 document.getElementById("send").onclick = () => {
-  ws.send(JSON.stringify({ type: "test" }));
+  console.log('send')
+  ws.send(JSON.stringify({ type: "test", content: document.getElementById('content').value }));
 };

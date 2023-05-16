@@ -13,8 +13,12 @@ export default async function vtsStart() {
       pluginName: "VTS.JS-ZJ",
       pluginDeveloper: "Hawkbar",
       webSocketFactory: (url) => new WebSocket(url),
+      url: "ws://127.0.0.1:8001",
     });
-
+    console.log('vts startting')
+    apiClient.on("error", async (err) => {
+      console.error(err)
+    })
     apiClient.on("connect", async () => {
       const stats = await apiClient.statistics();
 
