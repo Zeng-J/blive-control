@@ -38,14 +38,11 @@ class Controller {
       // onboundary比onend更快速响应
       // onend缺点：语音讲完后，嘴巴还再动。所以用onboundary更快些让嘴巴停止
       if (e.charIndex + e.charLength + 1 >= e.utterance.text.length) {
-        this.handleMouthStop();
+        this.ws.send(JSON.stringify({ type: "end" }));
       }
     };
     msg.onend = () => {
       console.log("播放结束");
-      /// 嘴巴停止
-      this.handleMouthStop();
-      this.ws.send(JSON.stringify({ type: "end" }));
     };
     msg.volume = 1; // 声音音量：1
     msg.rate = 1; // 语速：1
@@ -54,46 +51,12 @@ class Controller {
       msg.voice = this.curVoices;
     }
     this.synth.speak(msg); // 语音播放
-    setTimeout(() => {
-      this.handleMouthStart(); // 动嘴巴
-    }, 300)
   }
   // 语音停止
   handleStop(e) {
     const msg = this.ssu;
     msg.text = e;
     this.synth.cancel(msg);
-  }
-
-  // vts嘴巴动起来
-  handleMouthMove(open) {
-    this.vts
-      .injectParameterData({
-        mode: "set",
-        parameterValues: [
-          {
-            id: "MouthOpen",
-            value: open ? 0.7 : 0,
-          },
-        ],
-      })
-      .catch((err) => {
-        console.error(err);
-      });
-  }
-
-  handleMouthStart() {
-    let isOpen = true;
-    clearInterval(this.mouthTimer);
-    this.handleMouthMove(isOpen);
-    this.mouthTimer = setInterval(() => {
-      this.handleMouthMove((isOpen = !isOpen));
-    }, 280);
-  }
-
-  handleMouthStop() {
-    clearInterval(this.mouthTimer);
-    this.handleMouthMove(false);
   }
 }
 
