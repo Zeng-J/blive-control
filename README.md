@@ -1,7 +1,12 @@
-xiaoyi
-HsiaoChen
-Xiaoni
+# blive-control
 
-    "express": "^4.18.2",
-    "vtubestudio": "^3.3.0",
-    "ws": "^8.13.0"
+> 用于bilibili的ai虚拟直播
+
+## 用法
+
+```bash
+git clone https://github.com/Zeng-J/blive-control.git
+cd blive-control
+pnpm build
+pnpm start
+```
