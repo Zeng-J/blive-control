@@ -1,0 +1,14 @@
+.container {
+  display: flex;
+}
+
+.card {
+  margin: 20px;
+}
+.card textarea {
+  display: block;
+  padding: 10px;
+  margin-bottom: 12px;
+  min-width: 260px;
+  min-height: 140px;
+}

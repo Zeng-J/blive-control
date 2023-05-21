@@ -430,12 +430,35 @@ export default class ChatClientDirect {
     }
     this.onDelSuperChat({ ids })
   }
+
+  async interactWordCallback(command) {
+    if (!this.onUserEnter) {
+      return
+    }
+
+    let data = command.data
+    data = {
+      id: getUuid4Hex(),
+      avatarUrl: await avatar.getAvatarUrl(data.uid),
+      timestamp: data.timestamp,
+      authorName: data.uname,
+      privilegeType: data.privilege_type
+    }
+    this.onUserEnter(data)
+  }
 }
 
 const CMD_CALLBACK_MAP = {
+  /** 弹幕消息 */
   DANMU_MSG: ChatClientDirect.prototype.danmuMsgCallback,
+  /** 礼物消息 */
   SEND_GIFT: ChatClientDirect.prototype.sendGiftCallback,
+  /** 上舰消息 */
   GUARD_BUY: ChatClientDirect.prototype.guardBuyCallback,
   SUPER_CHAT_MESSAGE: ChatClientDirect.prototype.superChatMessageCallback,
-  SUPER_CHAT_MESSAGE_DELETE: ChatClientDirect.prototype.superChatMessageDeleteCallback
+  SUPER_CHAT_MESSAGE_DELETE: ChatClientDirect.prototype.superChatMessageDeleteCallback,
+  /** 舰长、高能榜、老爷进入直播间 */
+  // ENTRY_EFFECT
+  /** xxx 进入了直播间 */
+  INTERACT_WORD: ChatClientDirect.prototype.interactWordCallback,
 }

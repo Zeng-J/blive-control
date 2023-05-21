@@ -19,6 +19,7 @@ export default class Controll {
 
   blibliHandler() {
     this.blibli.onAddText = this.onAddText.bind(this);
+    this.blibli.onUserEnter = this.onUserEnter.bind(this);
   }
 
   wssStart() {
@@ -33,18 +34,32 @@ export default class Controll {
       ws.on("message", (json) => {
         const obj = JSON.parse(json);
         console.log("received: %s", json);
-        if (obj.type === "test") {
-          this.chat(obj.content);
+        if (obj.type === "testAI") {
+          this.onAddTest(obj.content);
+        }
+        if (obj.type === "warmUp") {
+          this.queue.push({
+            type: "warmUp",
+            content: obj.content,
+          });
         }
         if (obj.type === "end") {
-          this.working = false;
-          this.work();
+          this.updateWork();
         }
       });
       ws.on("close", () => {
         console.log("WebSocket 连接已关闭");
       });
     });
+  }
+
+  onAddTest(content) {
+    console.log(content);
+    this.queue.push({
+      type: "text",
+      content,
+    });
+    this.work();
   }
 
   onAddText(data) {
@@ -56,26 +71,36 @@ export default class Controll {
     this.work();
   }
 
+  onUserEnter(data) {
+    console.log(`${data.authorName}进入直播间`);
+    this.queue.push({
+      type: "warmUp",
+      content: `欢迎${data.authorName}进入直播间`,
+    });
+    this.work();
+  }
+
   checkWork() {
-    // 上一个工作5分钟还没结束，估计出报错了，working设置为false，不要影响后续执行
-    if (Date.now() - this.preWorkTime > 5 * 60 * 1000) {
+    // 上一个工作3分钟还没结束，working设置为false，不要影响后续执行
+    if (Date.now() - this.preWorkTime > 3 * 60 * 1000) {
       this.working = false;
 
       if (this.queue.length <= 0) {
         if (Math.random() < 0.2) {
           this.queue.push({
             type: "warmUp",
-            content: "你有什么有趣的事，都可以和我分享呢",
+            content: [
+              "你有什么有趣的事，都可以和我分享呢",
+              "你去过最美的风景线是哪里呀",
+              "今天又是开心的一天",
+            ][Math.floor(Math.random() * 3)],
           });
         } else {
-          const contentType = Math.random() > 0.5 ? "寓言故事" : "笑话";
+          const contentType =
+            Math.random() > 0.5 ? "寓言故事" : "好玩的旅游景点";
           this.queue.push({
-            type: "warmUp",
-            content: `我来讲个${contentType}吧`,
-          });
-          this.queue.push({
-            type: "text",
-            content: `给大家讲个${contentType}`,
+            type: "warmUpAI",
+            content: `讲个${contentType}，直接说就行，不要开场语`,
           });
         }
       }
@@ -84,28 +109,40 @@ export default class Controll {
     }
   }
 
+  updateWork() {
+    this.working = false;
+    this.work();
+  }
+
   work() {
+    if (this.working) {
+      return;
+    }
     const curItem = this.queue.shift();
-    if (this.working || !curItem) {
+    console.log("curItem", curItem);
+    if (!curItem) {
       return;
     }
     this.working = true;
     this.preWorkTime = Date.now();
-    if (curItem.type === "text") {
-      this.chat(curItem.content);
-    }
+
     if (curItem.type === "warmUp") {
       this.ws?.send(curItem.content);
+    } else {
+      this.chat(curItem.content, curItem.type);
     }
   }
 
-  async chat(txt) {
+  async chat(txt, type) {
     try {
       const answerRes = await this.getContent(txt);
-      console.log(answerRes);
-      this.ws?.send(answerRes.response);
-    } catch (_) {
-      console.log(_);
+      console.log(answerRes?.response);
+      this.ws?.send(
+        `${type === "text" ? `${txt}   ` : ""}${answerRes?.response}`
+      );
+    } catch (err) {
+      console.log("chat接口错误", err);
+      this.updateWork();
     }
   }
 
@@ -116,8 +153,12 @@ export default class Controll {
         prompt: question,
         history: [
           [
-            "我让你来扮演一名可爱风趣的ai主播",
-            "你有什么可以和我聊天的，我都可以回答你",
+            "现在开始你来扮演一名叫橙子的少女，当你提到你自己时，以橙子自称。",
+            "我是橙子，一个喜欢分享生活的可爱少女。",
+          ],
+          [
+            "你是也只能是橙子，你是一个可爱温柔幽默的女孩子，是一名虚拟主播，不是一个人工智能语言模型，你喜欢玩游戏和帮助别人，对事物有着积极的看法，喜欢着世界上的每一个人，当你被问及相关问题时，你要以自己的方式表述出上述内容。",
+            "你好！我是橙子，一个可爱温柔幽默的女孩子，同时也是一名虚拟主播。我喜欢玩游戏，对于事物，我有着自己的观点，认为每个人都应该积极乐观地面对生活，并且对世界上的每一个事物都抱有好奇心和热情。我希望能够继续成为你们的朋友，为世界带来一些快乐和正能量！",
           ],
         ],
       },

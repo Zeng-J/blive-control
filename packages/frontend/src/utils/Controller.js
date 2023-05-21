@@ -1,9 +1,6 @@
-import { ApiClient } from "vtubestudio";
-
 class Controller {
-  constructor(ws, vts) {
+  constructor(ws) {
     this.ws = ws;
-    this.vts = vts;
     this.initVoice();
     this.initMessage();
   }
@@ -44,6 +41,10 @@ class Controller {
     msg.onend = () => {
       console.log("播放结束");
     };
+    msg.onerror = (e) => {
+      this.ws.send(JSON.stringify({ type: "end" }));
+      console.error(e);
+    };
     msg.volume = 1; // 声音音量：1
     msg.rate = 1; // 语速：1
     msg.pitch = 1; // 音高：1
@@ -77,37 +78,7 @@ function createWSController() {
   return ws;
 }
 
-function createVTSController() {
-  function setAuthToken(authenticationToken) {
-    localStorage.setItem("VTS_AUTH_TOKEN", authenticationToken);
-  }
-
-  function getAuthToken() {
-    return localStorage.getItem("VTS_AUTH_TOKEN");
-  }
-
-  const options = {
-    authTokenGetter: getAuthToken,
-    authTokenSetter: setAuthToken,
-    pluginName: "VTS.JS-ZJ",
-    pluginDeveloper: "Hawkbar",
-
-    // Optionally set the URL or port to connect to VTube Studio at; defaults are as below:
-    // port: 8001,
-    //url: "ws://localhost:${port}",
-
-    url: "ws://127.0.0.1:8001",
-  };
-
-  const apiClient = new ApiClient(options);
-  return apiClient;
-}
-
 const ws = createWSController();
-const vts = createVTSController();
-new Controller(ws, vts);
+export const controller = new Controller(ws);
 
-document.getElementById("send").onclick = () => {
-  console.log('send')
-  ws.send(JSON.stringify({ type: "test", content: document.getElementById('content').value }));
-};
+export default ws;
