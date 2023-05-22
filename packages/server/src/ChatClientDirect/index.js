@@ -150,6 +150,11 @@ export default class ChatClientDirect {
     this.websocket.onopen = this.onWsOpen.bind(this)
     this.websocket.onclose = this.onWsClose.bind(this)
     this.websocket.onmessage = this.onWsMessage.bind(this)
+    this.websocket.onerror = this.onWsError.bind(this)
+  }
+
+  onWsError() {
+    console.log('errored');
   }
 
   onWsOpen() {

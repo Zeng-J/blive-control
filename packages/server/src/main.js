@@ -3,8 +3,9 @@ import axios from "axios";
 export default class Controll {
   ws = null;
   queue = [];
-  working = false;
-  preWorkTime = Date.now();
+  voiceWorking = false;
+  aiWorking = false;
+  preVoiceWorkTime = Date.now();
 
   constructor(wss, blibli) {
     this.wss = wss;
@@ -42,6 +43,7 @@ export default class Controll {
             type: "warmUp",
             content: obj.content,
           });
+          this.onVoiceWork();
         }
         if (obj.type === "end") {
           this.updateWork();
@@ -53,20 +55,29 @@ export default class Controll {
     });
   }
 
-  onAddTest(content) {
-    console.log(content);
+  onAddTest(question) {
+    console.log(question);
     this.queue.push({
-      type: "text",
-      content,
+      type: "testChat",
+      question,
+      aiIsNeeded: true,
     });
     this.work();
   }
 
   onAddText(data) {
     console.log(data.content);
+
+    // 一般不会发生，万一问题为空，或问题大于100，则过滤掉
+    if (!data.content || data.content.length > 100) {
+      return;
+    }
+
     this.queue.push({
-      type: "text",
-      content: data.content,
+      type: "userChat",
+      question: data.content,
+      authorName: data.authorName,
+      aiIsNeeded: true,
     });
     this.work();
   }
@@ -81,9 +92,9 @@ export default class Controll {
   }
 
   checkWork() {
-    // 上一个工作3分钟还没结束，working设置为false，不要影响后续执行
-    if (Date.now() - this.preWorkTime > 3 * 60 * 1000) {
-      this.working = false;
+    // 上一个工作3分钟还没结束，voiceWorking设置为false，不要影响后续执行
+    if (Date.now() - this.preVoiceWorkTime > 3 * 60 * 1000) {
+      this.voiceWorking = false;
 
       if (this.queue.length <= 0) {
         if (Math.random() < 0.2) {
@@ -100,7 +111,8 @@ export default class Controll {
             Math.random() > 0.5 ? "寓言故事" : "好玩的旅游景点";
           this.queue.push({
             type: "warmUpAI",
-            content: `讲个${contentType}，直接说就行，不要开场语`,
+            question: `讲个${contentType}，直接说就行，不要开场语`,
+            aiIsNeeded: true,
           });
         }
       }
@@ -110,40 +122,93 @@ export default class Controll {
   }
 
   updateWork() {
-    this.working = false;
+    this.voiceWorking = false;
     this.work();
   }
 
   work() {
-    if (this.working) {
+    this.onAiWork();
+    this.onVoiceWork();
+  }
+
+  onVoiceWork() {
+    if (this.voiceWorking) {
       return;
     }
-    const curItem = this.queue.shift();
-    console.log("curItem", curItem);
+    const curItem = this.queue[0];
     if (!curItem) {
       return;
     }
-    this.working = true;
-    this.preWorkTime = Date.now();
-
-    if (curItem.type === "warmUp") {
-      this.ws?.send(curItem.content);
-    } else {
-      this.chat(curItem.content, curItem.type);
+    // ai还没返回数据
+    if (curItem.aiIsNeeded && !curItem.aiFinished) {
+      return;
     }
+    this.queue.shift();
+    this.voiceWorking = true;
+    this.preVoiceWorkTime = Date.now();
+    this.ws?.send(curItem.content);
   }
 
-  async chat(txt, type) {
-    try {
-      const answerRes = await this.getContent(txt);
-      console.log(answerRes?.response);
-      this.ws?.send(
-        `${type === "text" ? `${txt}   ` : ""}${answerRes?.response}`
-      );
-    } catch (err) {
-      console.log("chat接口错误", err);
-      this.updateWork();
+  async onAiWork() {
+    if (this.aiWorking) {
+      return;
     }
+    const curItem = this.queue.find(
+      (item) => item.aiIsNeeded && !item.aiFinished
+    );
+
+    if (!curItem) {
+      return;
+    }
+
+    this.aiWorking = true;
+
+    const onRequestAi = async () => {
+      try {
+        const answerRes = await this.getContent(curItem.question);
+        console.log(answerRes?.response);
+        curItem.content = `${
+          curItem.type === "userChat" ? `${curItem.question}   ` : ""
+        }${answerRes?.response}`;
+        curItem.aiFinished = true;
+        this.onVoiceWork();
+      } catch (err) {
+        console.log("chat接口错误", err);
+      }
+
+      return "aiCallback";
+    };
+
+    const onRequestAiPromise = onRequestAi();
+
+    // 假如只有一个人在问问题，如果ai请求太久了，先说说暖场话
+    if (
+      this.queue.length === 1 &&
+      curItem.type === "userChat" &&
+      !this.voiceWorking
+    ) {
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          resolve("timeoutCallback");
+        }, 7000);
+      });
+      await Promise.race([onRequestAiPromise, timeoutPromise]).then((res) => {
+        if (res === "timeoutCallback") {
+          this.queue.unshift({
+            type: "warmUp",
+            content: `我在思考怎么回答${curItem.authorName}的问题`,
+          });
+          this.onVoiceWork();
+        }
+      });
+    }
+    await onRequestAiPromise;
+
+    this.aiWorking = false;
+
+    setTimeout(() => {
+      this.onAiWork();
+    }, 3000);
   }
 
   async getContent(question) {
@@ -167,6 +232,7 @@ export default class Controll {
         headers: {
           "Content-Type": "application/json",
         },
+        timeout: 40000,
       }
     );
 
